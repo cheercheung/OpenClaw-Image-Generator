@@ -22,80 +22,36 @@ Extract the following from their request:
 
 ## Execution
 
-All HTTP operations use `curl`, which is natively available on Windows 10+, macOS, and Linux. User input (prompt) is written to a file via the Write tool to avoid shell escaping issues entirely.
+Run the following bash script in a **single Bash call**. The Bash tool runs bash on all platforms (including Windows), so no platform-specific scripts are needed.
 
-### Step 1: Write the request body to a file
+Replace `<API_KEY>` with the actual key and `<OUTPUT_FILE>` with `evolink-<TIMESTAMP>.webp`.
 
-Use the **Write tool** (not Bash) to create a `evolink-request-<TIMESTAMP>.json` file in the current working directory:
+The user's prompt is embedded in a single-quoted heredoc (EVOLINK_END), which prevents all shell interpretation. You only need to apply **JSON escaping** to the prompt — escape double quotes with a backslash, and escape backslashes by doubling them.
 
-```json
+```bash
+API_KEY="<API_KEY>"
+OUT_FILE="<OUTPUT_FILE>"
+
+# Submit — heredoc passes JSON via stdin, no temp files needed
+RESP=$(curl -s -X POST "https://api.evolink.ai/v1/images/generations" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d @- <<'EVOLINK_END'
 {
   "model": "z-image-turbo",
   "prompt": "<USER_PROMPT>",
   "size": "<SIZE>",
   "nsfw_check": <true|false>
 }
-```
-
-This completely avoids shell escaping — the prompt goes directly into the file, no matter what special characters it contains.
-
-### Step 2: Submit + Poll + Download (single script)
-
-Check the `Platform` field from your environment info, then run the corresponding script in a **single Bash call**.
-
-Replace `<API_KEY>` with the actual key, `<REQUEST_FILE>` with the filename from Step 1, and `<OUTPUT_FILE>` with `evolink-<TIMESTAMP>.webp`.
-
-#### Windows (Platform: `win32`)
-
-```powershell
-powershell -Command "
-$apiKey = '<API_KEY>'
-$reqFile = '<REQUEST_FILE>'
-$outFile = '<OUTPUT_FILE>'
-$headers = @{Authorization=\"Bearer $apiKey\"; 'Content-Type'='application/json'}
-$body = Get-Content $reqFile -Raw
-
-# Submit
-$resp = Invoke-RestMethod -Uri 'https://api.evolink.ai/v1/images/generations' -Method Post -Headers $headers -Body $body
-$taskId = $resp.id
-Write-Host \"Task submitted: $taskId\"
-
-# Poll
-$maxRetries = 200
-for ($i = 0; $i -lt $maxRetries; $i++) {
-    Start-Sleep -Seconds 10
-    $task = Invoke-RestMethod -Uri \"https://api.evolink.ai/v1/tasks/$taskId\" -Headers @{Authorization=\"Bearer $apiKey\"}
-    Write-Host \"[$i] Status: $($task.status) | Progress: $($task.progress)%\"
-    if ($task.status -eq 'completed') {
-        $url = $task.results[0]
-        Write-Host \"Image URL: $url\"
-        Invoke-WebRequest -Uri $url -OutFile $outFile
-        Write-Host \"Downloaded to: $outFile\"
-        break
-    }
-    if ($task.status -eq 'failed') {
-        Write-Host \"Generation failed: $($task | ConvertTo-Json)\"
-        break
-    }
-}
-if ($i -eq $maxRetries) { Write-Host 'Timed out after max retries.' }
-"
-```
-
-#### Unix / macOS (Platform: `darwin` or `linux`)
-
-```bash
-API_KEY="<API_KEY>"
-REQ_FILE="<REQUEST_FILE>"
-OUT_FILE="<OUTPUT_FILE>"
-
-# Submit
-RESP=$(curl -s -X POST "https://api.evolink.ai/v1/images/generations" \
-  -H "Authorization: Bearer $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d @"$REQ_FILE")
+EVOLINK_END
+)
 TASK_ID=$(echo "$RESP" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
 echo "Task submitted: $TASK_ID"
+
+if [ -z "$TASK_ID" ]; then
+  echo "Error: Failed to submit task. Response: $RESP"
+  exit 1
+fi
 
 # Poll
 MAX_RETRIES=200
@@ -128,4 +84,3 @@ After completion, respond to the user:
 - **completed**: Show the image URL and confirm the file was downloaded as `evolink-<TIMESTAMP>.webp`. Remind them the URL expires in **72 hours**.
 - **failed**: Report the error message from the API.
 - **timed out** (200 polls): Inform the user and provide the task ID for manual follow-up.
-- **cleanup**: Delete the `evolink-request-<TIMESTAMP>.json` temp file after the task is done.
