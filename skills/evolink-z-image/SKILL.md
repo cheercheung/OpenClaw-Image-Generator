@@ -1,6 +1,6 @@
 ---
 name: evolink-z-image
-description: Generate images with the Evolink Z-Image-Turbo API (submit, poll, download .webp). Trigger on requests like “生图：<提示词>”, “出图：<提示词>”, “生成图片”, or mentions of Evolink / z-image-turbo.
+description: Generate images with the Evolink Z-Image-Turbo API (submit, poll, download .webp). Trigger on “生图：<提示词>”, “出图：<提示词>”, “生成图片”, “generate a picture: <prompt>”, or mentions of Evolink / z-image-turbo.
 ---
 
 # Evolink Z-Image (Z-Image-Turbo)
@@ -13,6 +13,11 @@ If the user says `生图：XXXX` (or `出图：XXXX` / `生成图片：XXXX`), t
 
 - Default `size`: `1:1` (only override if the user explicitly asks for a different ratio/size)
 - Default `nsfw_check`: `false`
+- Do not send progress-style replies like “任务已提交 / 正在生成中…”. Wait and only respond once the image is downloaded and delivered.
+
+## Quick flow (generate a picture: prompt)
+
+If the user says `generate a picture: XXXX` (or similar like `generate an image: XXXX`), treat `XXXX` as the `prompt` and generate immediately (same defaults as above).
 
 ## Inputs to collect
 
@@ -35,7 +40,9 @@ Check `EVOLINK_API_KEY` in the environment. If it is empty/unset, ask the user f
 
 ## Preferred execution (Python, no deps)
 
-Prefer running the bundled script (avoids shell escaping issues and brittle JSON parsing):
+Prefer running the bundled script (avoids shell escaping issues and brittle JSON parsing).
+
+Run the script from the `scripts/` folder next to this `SKILL.md`:
 
 ```bash
 python3 scripts/evolink_z_image.py \
@@ -51,8 +58,9 @@ If the user provided a `seed`, include `--seed 42`. If they want a specific outp
 
 If Python is unavailable, use the curl flow in `references/curl_heredoc.md`.
 
-## Result handling
+## Result handling (OpenClaw)
 
-- On success: always download the image to a local file (the Python script already does this), then report both the image URL and the downloaded filename. Remind the user the URL expires in ~72 hours.
-- On failure: surface the API error message/body and suggest retrying with a simpler prompt or different size.
-- On timeout: provide the task ID for manual follow-up.
+- Always download the image to a local file. Do not only return the URL.
+- After download, **do not use the read tool as “delivery”** (read only shows the image in this chat).
+- For actual delivery, the agent must call the OpenClaw messaging action and pass the local file via the message `filePath` parameter (pointing at the downloaded `.webp`), then confirm delivery to the user.
+- Do not paste the image URL, do not show the local file path, and do not mention URL expiry. Just send the image via OpenClaw and reply succinctly (e.g. “已发送” / “Sent”).

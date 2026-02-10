@@ -25,7 +25,6 @@ EVOLINK_END
 )
 
 TASK_ID=$(echo "$RESP" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-echo "Task submitted: $TASK_ID"
 
 if [ -z "$TASK_ID" ]; then
   echo "Error: Failed to submit task. Response: $RESP"
@@ -38,13 +37,10 @@ for i in $(seq 1 $MAX_RETRIES); do
   TASK=$(curl -s "https://api.evolink.ai/v1/tasks/$TASK_ID" \
     -H "Authorization: Bearer $API_KEY")
   STATUS=$(echo "$TASK" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
-  echo "[$i] Status: $STATUS"
 
   if [ "$STATUS" = "completed" ]; then
     URL=$(echo "$TASK" | grep -o '"results":\\["[^"]*"\\]' | grep -o 'https://[^"]*')
-    echo "Image URL: $URL"
     curl -s -o "$OUT_FILE" "$URL"
-    echo "Downloaded to: $OUT_FILE"
     break
   fi
   if [ "$STATUS" = "failed" ]; then
@@ -63,3 +59,8 @@ If you only have a URL and no file yet, download it immediately (URL expires in 
 ```bash
 curl -L -o evolink-result.webp "<URL>"
 ```
+
+For OpenClaw usage:
+
+- `read` only previews the image in this chat.
+- Send/upload the downloaded `.webp` to the user via the OpenClaw message action using its `filePath` parameter (do not only paste the URL).

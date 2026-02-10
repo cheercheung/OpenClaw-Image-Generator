@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-#!/usr/bin/env python3
 from __future__ import annotations
 
 import argparse
@@ -71,6 +70,7 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--out", default=None, help="Output filename (default: evolink-<timestamp>.webp).")
     parser.add_argument("--poll-seconds", type=int, default=10, help="Seconds between polls.")
     parser.add_argument("--max-retries", type=int, default=200, help="Max polling attempts.")
+    parser.add_argument("--verbose", action="store_true", help="Print task id and per-poll status (debug).")
     args = parser.parse_args(argv)
 
     api_key = (args.api_key or "").strip()
@@ -98,22 +98,27 @@ def main(argv: list[str]) -> int:
     if not task_id:
         raise RuntimeError(f"Failed to submit task; response: {resp}")
 
-    print(f"Task submitted: {task_id}")
+    if args.verbose:
+        print(f"Task submitted: {task_id}")
 
     for i in range(1, args.max_retries + 1):
         time.sleep(args.poll_seconds)
         task = _json_request(f"{API_BASE}/tasks/{task_id}", api_key=api_key, method="GET")
         status = task.get("status")
-        print(f"[{i}] Status: {status}")
+        if args.verbose:
+            print(f"[{i}] Status: {status}")
 
         if status == "completed":
             results = task.get("results") or []
             if not results:
                 raise RuntimeError(f"Task completed but no results field found: {task}")
             url = results[0]
-            print(f"Image URL: {url}")
             _download(url, out_file=out_file)
-            print(f"Downloaded to: {out_file}")
+            if args.verbose:
+                print(f"Image URL: {url}")
+                print(f"Downloaded to: {out_file}")
+            else:
+                print(out_file)
             return 0
 
         if status == "failed":
