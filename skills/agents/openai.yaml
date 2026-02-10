@@ -1,5 +1,4 @@
 interface:
   display_name: "Evolink Z-Image"
   short_description: "Generate images via Evolink z-image-turbo"
-  default_prompt: "Use $evolink-z-image to generate an image from this prompt: <describe the image>."
-
+  default_prompt: "用 $evolink-z-image 生图：<提示词>"

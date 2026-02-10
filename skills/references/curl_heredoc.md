@@ -58,3 +58,8 @@ if [ "$i" -eq "$MAX_RETRIES" ]; then
 fi
 ```
 
+If you only have a URL and no file yet, download it immediately (URL expires in ~72 hours):
+
+```bash
+curl -L -o evolink-result.webp "<URL>"
+```

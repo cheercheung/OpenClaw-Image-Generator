@@ -1,11 +1,18 @@
 ---
 name: evolink-z-image
-description: Generate images with the Evolink Z-Image-Turbo API (submit task, poll status, download the resulting .webp). Use when a user asks to generate an image via Evolink or mentions z-image-turbo.
+description: Generate images with the Evolink Z-Image-Turbo API (submit, poll, download .webp). Trigger on requests like “生图：<提示词>”, “出图：<提示词>”, “生成图片”, or mentions of Evolink / z-image-turbo.
 ---
 
 # Evolink Z-Image (Z-Image-Turbo)
 
 Use this skill when the user wants to generate an image via Evolink's `z-image-turbo` model.
+
+## Quick flow (生图：提示词)
+
+If the user says `生图：XXXX` (or `出图：XXXX` / `生成图片：XXXX`), treat `XXXX` as the `prompt` and generate immediately.
+
+- Default `size`: `1:1` (only override if the user explicitly asks for a different ratio/size)
+- Default `nsfw_check`: `false`
 
 ## Inputs to collect
 
@@ -19,7 +26,12 @@ Use this skill when the user wants to generate an image via Evolink's `z-image-t
 Check `EVOLINK_API_KEY` in the environment. If it is empty/unset, ask the user for their key.
 
 - If they don't have one: direct them to register and create a key in the Evolink dashboard.
-- Do not rely on `export`/`set` persisting across separate shell/tool calls; pass the key into the same command you run.
+- After the user provides it: keep it in your conversation context as `EVOLINK_API_KEY` for subsequent generations in this chat.
+- For persistence across future chats, suggest setting a system env var:
+  - macOS (zsh): `echo 'export EVOLINK_API_KEY="...your key..."' >> ~/.zshrc && source ~/.zshrc`
+  - Linux (bash): `echo 'export EVOLINK_API_KEY="...your key..."' >> ~/.bashrc && source ~/.bashrc`
+  - Windows (PowerShell): `[Environment]::SetEnvironmentVariable("EVOLINK_API_KEY","...your key...","User")`
+- Do not rely on `export`/`set` persisting across separate tool calls; pass the key into the same command you run.
 
 ## Preferred execution (Python, no deps)
 
@@ -41,6 +53,6 @@ If Python is unavailable, use the curl flow in `references/curl_heredoc.md`.
 
 ## Result handling
 
-- On success: report the image URL and the downloaded filename. Remind the user the URL expires in ~72 hours.
+- On success: always download the image to a local file (the Python script already does this), then report both the image URL and the downloaded filename. Remind the user the URL expires in ~72 hours.
 - On failure: surface the API error message/body and suggest retrying with a simpler prompt or different size.
 - On timeout: provide the task ID for manual follow-up.
