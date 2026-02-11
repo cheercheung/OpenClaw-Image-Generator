@@ -12,12 +12,15 @@ import urllib.request
 
 
 API_BASE = "https://api.evolink.ai/v1"
+_UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 
 
 def _json_request(url: str, api_key: str, method: str = "GET", payload=None, timeout_s: int = 60):
     headers = {
         "Authorization": f"Bearer {api_key}",
         "Content-Type": "application/json",
+        "User-Agent": _UA,
+        "Accept": "application/json",
     }
     data = None
     if payload is not None:
@@ -40,7 +43,7 @@ def _json_request(url: str, api_key: str, method: str = "GET", payload=None, tim
 
 
 def _download(url: str, out_file: str, timeout_s: int = 120):
-    req = urllib.request.Request(url, method="GET")
+    req = urllib.request.Request(url, method="GET", headers={"User-Agent": _UA})
     try:
         with urllib.request.urlopen(req, timeout=timeout_s) as resp:
             content = resp.read()
